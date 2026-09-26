@@ -3,7 +3,7 @@ import {
   Users, CheckCircle2, AlertCircle, FileText, Send, Award, 
   HelpCircle, ChevronRight, UserCheck, ShieldCheck, Download,
   ExternalLink, Sparkles, MessageCircle, Star, Phone, Mail, Building,
-  Lock, LogOut, KeyRound, RefreshCw, Eye, Search
+  Lock, LogOut, KeyRound, RefreshCw, Eye, Search, MapPin
 } from 'lucide-react';
 
 const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwTqdEZ3S1gyD2PbVYqpXJC7d9WElGletaN3ld8KGZFq2w0mr9qa6vSiab8_1lS18kFJQ/exec";
@@ -33,6 +33,8 @@ export default function App() {
     dni: '',
     phone: '',
     email: '',
+    district: '',
+    address: '',
     position: 'Asesores de Ventas / Teleoperadores',
     hasChildren: 'No',
     childrenCount: '0',
@@ -112,8 +114,8 @@ export default function App() {
       alert('Debe aceptar la Cláusula de Tratamiento de Datos Personales para continuar.');
       return;
     }
-    if (step === 1 && (!formData.fullName || !formData.dni || !formData.phone)) {
-      alert('Por favor complete todos los datos obligatorios del Paso 1.');
+    if (step === 1 && (!formData.fullName || !formData.dni || !formData.phone || !formData.district || !formData.address)) {
+      alert('Por favor complete todos los datos obligatorios del Paso 1, incluyendo su distrito y dirección.');
       return;
     }
     setStep(prev => prev + 1);
@@ -199,6 +201,7 @@ export default function App() {
   const filteredCandidates = candidatesList.filter(c => 
     (c.fullName && c.fullName.toString().toLowerCase().includes(searchTerm.toLowerCase())) ||
     (c.dni && c.dni.toString().includes(searchTerm)) ||
+    (c.district && c.district.toString().toLowerCase().includes(searchTerm.toLowerCase())) ||
     (c.position && c.position.toString().toLowerCase().includes(searchTerm.toLowerCase()))
   );
 
@@ -319,7 +322,7 @@ export default function App() {
                 <div className="flex justify-between items-center text-xs font-bold text-[#1B3326]/60 mb-2">
                   <span>Paso {step} de 5</span>
                   <span className="text-[#C29F62]">
-                    {step === 1 && 'Datos & Consentimiento'}
+                    {step === 1 && 'Datos, Ubicación & Consentimiento'}
                     {step === 2 && 'Prueba 1: Atajos y PC'}
                     {step === 3 && 'Prueba 2: Lógica & Aptitud'}
                     {step === 4 && 'Prueba 3: Perfil Conductual'}
@@ -340,7 +343,7 @@ export default function App() {
               <div className="space-y-6">
                 <div>
                   <h2 className="text-xl font-bold text-[#1B3326]">Ficha de Registro y Postulación</h2>
-                  <p className="text-sm text-gray-500">Completa tus datos personales para formalizar tu expediente de evaluación.</p>
+                  <p className="text-sm text-gray-500">Completa tus datos personales y de residencia para formalizar tu expediente de evaluación.</p>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -384,6 +387,33 @@ export default function App() {
                       className="w-full px-4 py-2.5 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-[#1B3326] text-sm"
                     />
                   </div>
+
+                  {/* NUEVOS CAMPOS: UBICACIÓN Y DIRECCIÓN */}
+                  <div>
+                    <label className="block text-xs font-bold uppercase tracking-wider text-[#1B3326] mb-1 flex items-center gap-1">
+                      <MapPin className="w-3.5 h-3.5 text-[#C29F62]" /> Distrito / Ciudad de Residencia *
+                    </label>
+                    <input 
+                      type="text" 
+                      placeholder="Ej. Miraflores, San Juan de Lurigancho, Trujillo"
+                      value={formData.district}
+                      onChange={(e) => setFormData({...formData, district: e.target.value})}
+                      className="w-full px-4 py-2.5 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-[#1B3326] text-sm bg-white"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold uppercase tracking-wider text-[#1B3326] mb-1">
+                      Dirección Exacta o Referencia *
+                    </label>
+                    <input 
+                      type="text" 
+                      placeholder="Ej. Av. Larco 450 Dpto 301 / Altura cruce Benavides"
+                      value={formData.address}
+                      onChange={(e) => setFormData({...formData, address: e.target.value})}
+                      className="w-full px-4 py-2.5 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-[#1B3326] text-sm bg-white"
+                    />
+                  </div>
+
                   <div className="md:col-span-2">
                     <label className="block text-xs font-bold uppercase tracking-wider text-gray-600 mb-1">Puesto al que Postula</label>
                     <select 
@@ -709,13 +739,14 @@ export default function App() {
                 <div className="bg-gray-50 p-4 rounded-xl border border-gray-200 max-w-md mx-auto text-left text-xs space-y-1 text-gray-600">
                   <p><strong>Postulante:</strong> {formData.fullName}</p>
                   <p><strong>DNI:</strong> {formData.dni}</p>
+                  <p><strong>Residencia:</strong> {formData.district} ({formData.address})</p>
                   <p><strong>Carga Familiar:</strong> {formData.hasChildren === 'Sí' ? `${formData.childrenCount} hijo(s) menor(es)` : 'Sin hijos menores'}</p>
                   <p><strong>Estado Legal:</strong> Consentimiento Ley 29733 Aceptado</p>
                 </div>
 
                 <div>
                   <a
-                    href={`https://wa.me/51967255622?text=Hola%20Sensa%20People,%20completé%20mi%20evaluación%20digital.%20Nombre:%20${encodeURIComponent(formData.fullName)}%20-%20DNI:%20${encodeURIComponent(formData.dni)}`}
+                    href={`https://wa.me/51967255622?text=Hola%20Sensa%20People,%20completé%20mi%20evaluación%20digital.%20Nombre:%20${encodeURIComponent(formData.fullName)}%20-%20DNI:%20${encodeURIComponent(formData.dni)}%20-%20Distrito:%20${encodeURIComponent(formData.district)}`}
                     target="_blank"
                     rel="noreferrer"
                     className="inline-flex items-center space-x-2 bg-[#1B3326] text-white px-6 py-3 rounded-full font-bold text-sm hover:bg-[#14261C] transition shadow"
@@ -766,7 +797,7 @@ export default function App() {
               <Search className="w-4 h-4 text-gray-400 ml-1" />
               <input
                 type="text"
-                placeholder="Buscar por Nombre, DNI o Puesto..."
+                placeholder="Buscar por Nombre, DNI, Distrito o Puesto..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="w-full text-xs text-gray-800 placeholder-gray-400 focus:outline-none"
@@ -798,6 +829,7 @@ export default function App() {
                       <tr>
                         <th className="py-3 px-4">Fecha</th>
                         <th className="py-3 px-4">Postulante</th>
+                        <th className="py-3 px-4">Ubicación</th>
                         <th className="py-3 px-4">Puesto</th>
                         <th className="py-3 px-4 text-center">Atajos</th>
                         <th className="py-3 px-4 text-center">Lógica</th>
@@ -818,6 +850,10 @@ export default function App() {
                           <td className="py-3 px-4">
                             <div className="font-bold text-[#1B3326]">{cand.fullName}</div>
                             <div className="text-[11px] text-gray-500">DNI: {cand.dni} | Cel: {cand.phone}</div>
+                          </td>
+                          <td className="py-3 px-4">
+                            <div className="font-semibold text-gray-800">{cand.district || 'No especificado'}</div>
+                            <div className="text-[10px] text-gray-500 truncate max-w-[150px]">{cand.address || ''}</div>
                           </td>
                           <td className="py-3 px-4 text-[11px] text-gray-600">{cand.position}</td>
                           <td className="py-3 px-4 text-center">
@@ -866,6 +902,10 @@ export default function App() {
                     <h3 className="text-2xl font-bold text-[#1B3326] mt-1">{selectedCandidate.fullName}</h3>
                     <p className="text-xs text-gray-500">
                       DNI: <strong>{selectedCandidate.dni}</strong> | Celular: <strong>{selectedCandidate.phone}</strong> | Correo: <strong>{selectedCandidate.email}</strong>
+                    </p>
+                    <p className="text-xs text-[#1B3326] font-medium mt-1 flex items-center gap-1">
+                      <MapPin className="w-3.5 h-3.5 text-[#C29F62]" /> 
+                      <strong>Distrito:</strong> {selectedCandidate.district || 'No especificado'} &nbsp;|&nbsp; <strong>Dirección:</strong> {selectedCandidate.address || 'No especificada'}
                     </p>
                   </div>
 
