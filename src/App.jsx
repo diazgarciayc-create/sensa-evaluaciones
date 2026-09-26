@@ -2,14 +2,23 @@ import React, { useState } from 'react';
 import { 
   Users, CheckCircle2, AlertCircle, FileText, Send, Award, 
   HelpCircle, ChevronRight, UserCheck, ShieldCheck, Download,
-  ExternalLink, Sparkles, MessageCircle, Star, Phone, Mail, Building
+  ExternalLink, Sparkles, MessageCircle, Star, Phone, Mail, Building,
+  Lock, LogOut, KeyRound
 } from 'lucide-react';
 
 export default function App() {
-  const [activeTab, setActiveTab] = useState('candidate');
+  const [activeTab, setActiveTab] = useState('candidate'); // 'candidate' | 'interviewer'
   const [step, setStep] = useState(1);
   const [gdprAccepted, setGdprAccepted] = useState(false);
 
+  // Seguridad / Control de Acceso para Analistas
+  const [isAnalystAuth, setIsAnalystAuth] = useState(false);
+  const [showAuthModal, setShowAuthModal] = useState(false);
+  const [accessPassword, setAccessPassword] = useState('');
+  const [authError, setAuthError] = useState(false);
+  const ANALYST_SECRET_PIN = "sensa2026"; // Clave de acceso institucional
+
+  // Form State
   const [formData, setFormData] = useState({
     fullName: '',
     dni: '',
@@ -24,6 +33,7 @@ export default function App() {
     psychologicalScore: 0,
   });
 
+  // Atajos de Teclado (10 preguntas)
   const [shortcutsAnswers, setShortcutsAnswers] = useState({});
   const shortcutsQuestions = [
     { id: 's1', q: '¿Qué atajo de teclado se utiliza para COPIAR un texto o elemento?', options: ['A) Ctrl + V', 'B) Ctrl + C', 'C) Ctrl + X', 'D) Ctrl + Z'], correct: 1 },
@@ -34,10 +44,11 @@ export default function App() {
     { id: 's6', q: '¿Qué comando selecciona TODO el texto o todos los elementos de un documento/carpeta?', options: ['A) Ctrl + T', 'B) Ctrl + E (o Ctrl + A en inglés)', 'C) Shift + Flecha Abajo', 'D) Alt + A'], correct: 1 },
     { id: 's7', q: '¿Cómo puedes MINIMIZAR todas las ventanas abiertas al instante y mostrar el escritorio?', options: ['A) Windows + D', 'B) Ctrl + M', 'C) Alt + F4', 'D) Windows + Esc'], correct: 0 },
     { id: 's8', q: 'Para ABRIR el Administrador de Tareas directamente si un programa se congela:', options: ['A) Alt + Tab + Del', 'B) Ctrl + Alt + F4', 'C) Windows + R', 'D) Ctrl + Shift + Esc'], correct: 3 },
-    { id: 's9', q: 'Para CERRAR la pestaña o pestaña activa del navegador sin cerrar todo el programa:', options: ['A) Ctrl + Q', 'B) Ctrl + W', 'C) Alt + W', 'D) Ctrl + Shift + W'], correct: 1 },
+    { id: 's9', q: 'Para CERRAR la pestaña activa del navegador sin cerrar todo el programa:', options: ['A) Ctrl + Q', 'B) Ctrl + W', 'C) Alt + W', 'D) Ctrl + Shift + W'], correct: 1 },
     { id: 's10', q: '¿Qué tecla se presiona en el teclado para ACTUALIZAR o recargar una página web?', options: ['A) F2', 'B) F11', 'C) F5', 'D) F8'], correct: 2 }
   ];
 
+  // Lógica y Razonamiento (10 preguntas)
   const [logicAnswers, setLogicAnswers] = useState({});
   const logicQuestions = [
     { id: 'l1', q: 'Si una empresa proyecta un presupuesto de S/ 8,000 y se reduce un 15%, ¿cuánto presupuesto queda disponible?', options: ['A) S/ 6,500', 'B) S/ 6,800', 'C) S/ 7,200', 'D) S/ 7,000'], correct: 1 },
@@ -52,6 +63,7 @@ export default function App() {
     { id: 'l10', q: 'Completa la secuencia de letras: B, D, F, H, ...', options: ['A) I', 'B) K', 'C) J', 'D) L'], correct: 2 }
   ];
 
+  // Psicológico / Conductual (10 preguntas)
   const [psychAnswers, setPsychAnswers] = useState({});
   const psychQuestions = [
     { id: 'p1', q: 'Frente a un día con múltiples imprevistos y cambios de prioridades por parte de gerencia, tu actitud habitual es:', options: ['A) Expresar molestia y exigir que no cambien los planes', 'B) Adaptarte con serenidad, reorganizar tu lista y avanzar por orden de relevancia', 'C) Dejar de trabajar hasta que definan algo fijo', 'D) Cumplir solo lo que te corresponde personalmente'], correct: 1 },
@@ -108,8 +120,36 @@ export default function App() {
     setStep(6);
   };
 
+  // Manejo de pestaña de analista con clave
+  const handleAnalystTabClick = () => {
+    if (isAnalystAuth) {
+      setActiveTab('interviewer');
+    } else {
+      setShowAuthModal(true);
+      setAuthError(false);
+      setAccessPassword('');
+    }
+  };
+
+  const handleVerifyPassword = (e) => {
+    e.preventDefault();
+    if (accessPassword === ANALYST_SECRET_PIN) {
+      setIsAnalystAuth(true);
+      setShowAuthModal(false);
+      setActiveTab('interviewer');
+    } else {
+      setAuthError(true);
+    }
+  };
+
+  const handleLogoutAnalyst = () => {
+    setIsAnalystAuth(false);
+    setActiveTab('candidate');
+  };
+
   return (
     <div className="min-h-screen bg-[#F7F5EE] text-[#0F1A14] font-sans pb-16">
+      {/* Encabezado */}
       <header className="bg-white border-b border-[#E5E0D0] sticky top-0 z-30 shadow-sm">
         <div className="max-w-6xl mx-auto px-4 py-3 flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center space-x-3">
@@ -134,23 +174,89 @@ export default function App() {
               Portal del Postulante
             </button>
             <button
-              onClick={() => setActiveTab('interviewer')}
+              onClick={handleAnalystTabClick}
               className={`px-4 py-2 rounded-full text-xs font-semibold transition flex items-center space-x-1.5 ${
                 activeTab === 'interviewer' 
                   ? 'bg-[#C29F62] text-white shadow' 
                   : 'bg-white border border-[#C29F62]/30 text-[#0F1A14] hover:bg-[#F7F5EE]'
               }`}
             >
-              <UserCheck className="w-3.5 h-3.5" />
+              {isAnalystAuth ? <UserCheck className="w-3.5 h-3.5" /> : <Lock className="w-3.5 h-3.5 text-gray-500" />}
               <span>Panel de Analista (Meet)</span>
             </button>
+
+            {isAnalystAuth && (
+              <button
+                onClick={handleLogoutAnalyst}
+                title="Cerrar sesión de analista"
+                className="p-2 rounded-full text-xs text-red-600 bg-red-50 hover:bg-red-100 transition border border-red-200"
+              >
+                <LogOut className="w-3.5 h-3.5" />
+              </button>
+            )}
           </div>
         </div>
       </header>
 
+      {/* Modal de Contraseña para el Analista */}
+      {showAuthModal && (
+        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl max-w-sm w-full p-6 shadow-2xl border border-gray-200 animate-in fade-in">
+            <div className="w-12 h-12 rounded-full bg-[#1B3326]/10 text-[#1B3326] flex items-center justify-center mx-auto mb-3">
+              <KeyRound className="w-6 h-6" />
+            </div>
+            <h3 className="text-center text-lg font-bold text-[#1B3326]">Acceso de Analista</h3>
+            <p className="text-center text-xs text-gray-500 mt-1 mb-4">
+              Área restringida para el equipo de selección de Sensa People. Ingresa tu clave para continuar.
+            </p>
+
+            <form onSubmit={handleVerifyPassword} className="space-y-4">
+              <div>
+                <input
+                  type="password"
+                  autoFocus
+                  placeholder="Contraseña institucional"
+                  value={accessPassword}
+                  onChange={(e) => {
+                    setAccessPassword(e.target.value);
+                    if (authError) setAuthError(false);
+                  }}
+                  className="w-full px-3 py-2.5 rounded-lg border border-gray-300 text-sm focus:ring-2 focus:ring-[#1B3326] focus:outline-none"
+                />
+                {authError && (
+                  <p className="text-red-600 text-xs mt-1.5 font-medium flex items-center gap-1">
+                    <AlertCircle className="w-3.5 h-3.5" /> Clave incorrecta. Acceso denegado.
+                  </p>
+                )}
+              </div>
+
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => setShowAuthModal(false)}
+                  className="w-1/2 py-2 text-xs font-semibold text-gray-600 bg-gray-100 rounded-lg hover:bg-gray-200 transition"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  className="w-1/2 py-2 text-xs font-semibold text-white bg-[#1B3326] rounded-lg hover:bg-[#14261C] transition"
+                >
+                  Ingresar
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Contenido Principal */}
       <main className="max-w-4xl mx-auto px-4 mt-8">
+        
+        {/* FLUJO POSTULANTE */}
         {activeTab === 'candidate' && (
           <div className="bg-white rounded-2xl shadow-sm border border-[#E5E0D0] p-6 sm:p-8">
+            
             {step <= 5 && (
               <div className="mb-8">
                 <div className="flex justify-between items-center text-xs font-bold text-[#1B3326]/60 mb-2">
@@ -172,6 +278,7 @@ export default function App() {
               </div>
             )}
 
+            {/* PASO 1 */}
             {step === 1 && (
               <div className="space-y-6">
                 <div>
@@ -308,6 +415,7 @@ export default function App() {
               </div>
             )}
 
+            {/* PASO 2 */}
             {step === 2 && (
               <div className="space-y-6">
                 <div>
@@ -352,6 +460,7 @@ export default function App() {
               </div>
             )}
 
+            {/* PASO 3 */}
             {step === 3 && (
               <div className="space-y-6">
                 <div>
@@ -396,6 +505,7 @@ export default function App() {
               </div>
             )}
 
+            {/* PASO 4 */}
             {step === 4 && (
               <div className="space-y-6">
                 <div>
@@ -440,6 +550,7 @@ export default function App() {
               </div>
             )}
 
+            {/* PASO 5 */}
             {step === 5 && (
               <div className="space-y-6">
                 <div>
@@ -453,11 +564,11 @@ export default function App() {
                     <div>
                       <h4 className="text-xs font-bold text-[#1B3326] uppercase">¿Cómo obtener tu Certijoven / Certificado Único Laboral (CUL)?</h4>
                       <p className="text-xs text-gray-600 mt-1 leading-relaxed">
-                        Es un certificado 100% oficial, legal y gratuito expedido por el Ministerio de Trabajo (MTPE). Contiene antecedentes policiales, penales y trayectoria laboral formal:
+                        Es un certificado 100% oficial y gratuito emitido por el MTPE. Contiene antecedentes policiales, penales y trayectoria laboral formal:
                       </p>
                       <ol className="text-xs text-gray-600 list-decimal list-inside mt-2 space-y-1 font-medium">
                         <li>Ingresa a: <a href="https://www.empleosperu.gob.pe" target="_blank" rel="noreferrer" className="text-[#C29F62] underline font-bold">empleosperu.gob.pe</a></li>
-                        <li>Inicia sesión con tu DNI y contraseña (o dale a registrarte en 2 min).</li>
+                        <li>Inicia sesión con tu DNI y contraseña.</li>
                         <li>Haz clic en <strong>"Solicitar Certificado Único Laboral"</strong> y descarga el PDF.</li>
                       </ol>
                     </div>
@@ -508,6 +619,7 @@ export default function App() {
               </div>
             )}
 
+            {/* PASO 6 */}
             {step === 6 && (
               <div className="text-center py-6 space-y-6">
                 <div className="w-16 h-16 bg-[#1B3326]/10 text-[#1B3326] rounded-full flex items-center justify-center mx-auto">
@@ -559,19 +671,23 @@ export default function App() {
           </div>
         )}
 
+        {/* PANEL DE ENTREVISTA EN VIVO (ANALISTA) */}
         {activeTab === 'interviewer' && (
           <div className="bg-white rounded-2xl shadow-sm border border-[#E5E0D0] p-6 sm:p-8 space-y-6">
             <div className="flex flex-wrap items-center justify-between gap-4 border-b border-gray-200 pb-4">
               <div>
-                <span className="bg-[#C29F62]/20 text-[#8E7036] text-xs font-bold px-2.5 py-1 rounded-full uppercase">Herramienta Operativa</span>
+                <span className="bg-[#C29F62]/20 text-[#8E7036] text-xs font-bold px-2.5 py-1 rounded-full uppercase">Área Restringida</span>
                 <h2 className="text-xl font-bold text-[#1B3326] mt-1">Scorecard de Entrevista en Vivo (Google Meet)</h2>
-                <p className="text-xs text-gray-500">Estandarización de evaluación en tiempo real para analistas de Sensa People.</p>
+                <p className="text-xs text-gray-500">Evaluación en tiempo real para analistas de selección de Sensa People.</p>
               </div>
 
-              <div className="flex items-center space-x-2 text-xs text-gray-500">
-                <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
-                <span>Fondo de Sensa activo</span>
-              </div>
+              <button
+                onClick={handleLogoutAnalyst}
+                className="px-3 py-1.5 rounded-lg border border-red-200 bg-red-50 text-red-700 text-xs font-semibold hover:bg-red-100 transition flex items-center space-x-1"
+              >
+                <LogOut className="w-3.5 h-3.5" />
+                <span>Cerrar Sesión</span>
+              </button>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 bg-[#F7F5EE] p-4 rounded-xl border border-[#E5E0D0]">
