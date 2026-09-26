@@ -1,24 +1,33 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Users, CheckCircle2, AlertCircle, FileText, Send, Award, 
   HelpCircle, ChevronRight, UserCheck, ShieldCheck, Download,
   ExternalLink, Sparkles, MessageCircle, Star, Phone, Mail, Building,
-  Lock, LogOut, KeyRound
+  Lock, LogOut, KeyRound, RefreshCw, Eye, Search
 } from 'lucide-react';
+
+const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwTqdEZ3S1gyD2PbVYqpXJC7d9WElGletaN3ld8KGZFq2w0mr9qa6vSiab8_1lS18kFJQ/exec";
+const ANALYST_SECRET_PIN = "sensa2026";
 
 export default function App() {
   const [activeTab, setActiveTab] = useState('candidate'); // 'candidate' | 'interviewer'
   const [step, setStep] = useState(1);
   const [gdprAccepted, setGdprAccepted] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Seguridad / Control de Acceso para Analistas
+  // Seguridad y datos del Analista
   const [isAnalystAuth, setIsAnalystAuth] = useState(false);
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [accessPassword, setAccessPassword] = useState('');
   const [authError, setAuthError] = useState(false);
-  const ANALYST_SECRET_PIN = "sensa2026"; // Clave de acceso institucional
+  
+  // Lista de postulantes cargados desde Google Sheets
+  const [candidatesList, setCandidatesList] = useState([]);
+  const [loadingCandidates, setLoadingCandidates] = useState(false);
+  const [selectedCandidate, setSelectedCandidate] = useState(null);
+  const [searchTerm, setSearchTerm] = useState('');
 
-  // Form State
+  // Form State del Postulante
   const [formData, setFormData] = useState({
     fullName: '',
     dni: '',
@@ -78,6 +87,7 @@ export default function App() {
     { id: 'p10', q: '¿Qué describe mejor tu motivación principal en el ámbito laboral?', options: ['A) Trabajar únicamente el mínimo indispensable para no ser despedido', 'B) Buscar la salida más rápida de cada tarea', 'C) Crecer profesionalmente mediante el mérito, la superación continua y el aporte de valor', 'D) Evitar asumir cualquier tipo de responsabilidad'], correct: 2 }
   ];
 
+  // Cálculo de puntajes
   const calculateScores = () => {
     let sScore = 0;
     shortcutsQuestions.forEach(q => {
@@ -109,18 +119,56 @@ export default function App() {
     setStep(prev => prev + 1);
   };
 
-  const handleFinishAssessment = () => {
+  // Enviar postulación a Google Sheets
+  const handleFinishAssessment = async () => {
+    setIsSubmitting(true);
     const { sScore, lScore, pScore } = calculateScores();
-    setFormData(prev => ({
-      ...prev,
+    const finalData = {
+      ...formData,
       shortcutsScore: sScore,
       psychometricScore: lScore,
       psychologicalScore: pScore
-    }));
-    setStep(6);
+    };
+    setFormData(finalData);
+
+    try {
+      await fetch(SCRIPT_URL, {
+        method: 'POST',
+        mode: 'no-cors',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(finalData)
+      });
+    } catch (err) {
+      console.error("Error al enviar postulación:", err);
+    } finally {
+      setIsSubmitting(false);
+      setStep(6);
+    }
   };
 
-  // Manejo de pestaña de analista con clave
+  // Cargar lista de postulantes desde Google Sheets
+  const fetchCandidates = async () => {
+    setLoadingCandidates(true);
+    try {
+      const res = await fetch(SCRIPT_URL);
+      const data = await res.json();
+      if (Array.isArray(data)) {
+        setCandidatesList(data.reverse()); // Los más recientes primero
+      }
+    } catch (err) {
+      console.error("Error al cargar postulantes:", err);
+    } finally {
+      setLoadingCandidates(false);
+    }
+  };
+
+  useEffect(() => {
+    if (isAnalystAuth && activeTab === 'interviewer') {
+      fetchCandidates();
+    }
+  }, [isAnalystAuth, activeTab]);
+
+  // Manejo de pestaña del Analista
   const handleAnalystTabClick = () => {
     if (isAnalystAuth) {
       setActiveTab('interviewer');
@@ -145,7 +193,14 @@ export default function App() {
   const handleLogoutAnalyst = () => {
     setIsAnalystAuth(false);
     setActiveTab('candidate');
+    setSelectedCandidate(null);
   };
+
+  const filteredCandidates = candidatesList.filter(c => 
+    (c.fullName && c.fullName.toString().toLowerCase().includes(searchTerm.toLowerCase())) ||
+    (c.dni && c.dni.toString().includes(searchTerm)) ||
+    (c.position && c.position.toString().toLowerCase().includes(searchTerm.toLowerCase()))
+  );
 
   return (
     <div className="min-h-screen bg-[#F7F5EE] text-[#0F1A14] font-sans pb-16">
@@ -198,10 +253,10 @@ export default function App() {
         </div>
       </header>
 
-      {/* Modal de Contraseña para el Analista */}
+      {/* Modal de Contraseña */}
       {showAuthModal && (
         <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
-          <div className="bg-white rounded-2xl max-w-sm w-full p-6 shadow-2xl border border-gray-200 animate-in fade-in">
+          <div className="bg-white rounded-2xl max-w-sm w-full p-6 shadow-2xl border border-gray-200">
             <div className="w-12 h-12 rounded-full bg-[#1B3326]/10 text-[#1B3326] flex items-center justify-center mx-auto mb-3">
               <KeyRound className="w-6 h-6" />
             </div>
@@ -250,10 +305,12 @@ export default function App() {
         </div>
       )}
 
-      {/* Contenido Principal */}
-      <main className="max-w-4xl mx-auto px-4 mt-8">
+      {/* Contenedor Principal */}
+      <main className="max-w-5xl mx-auto px-4 mt-8">
         
-        {/* FLUJO POSTULANTE */}
+        {/* =============================
+            FLUJO POSTULANTE
+        ============================= */}
         {activeTab === 'candidate' && (
           <div className="bg-white rounded-2xl shadow-sm border border-[#E5E0D0] p-6 sm:p-8">
             
@@ -610,9 +667,10 @@ export default function App() {
                 <div className="flex justify-end">
                   <button 
                     onClick={handleFinishAssessment}
-                    className="bg-[#1B3326] text-white px-8 py-3 rounded-xl font-bold text-sm hover:bg-[#14261C] transition shadow-md flex items-center space-x-2"
+                    disabled={isSubmitting}
+                    className="bg-[#1B3326] text-white px-8 py-3 rounded-xl font-bold text-sm hover:bg-[#14261C] transition shadow-md flex items-center space-x-2 disabled:opacity-50"
                   >
-                    <span>Finalizar y Enviar Evaluación</span>
+                    <span>{isSubmitting ? 'Registrando en el sistema...' : 'Finalizar y Enviar Evaluación'}</span>
                     <CheckCircle2 className="w-4 h-4 text-[#C29F62]" />
                   </button>
                 </div>
@@ -629,7 +687,7 @@ export default function App() {
                 <div>
                   <h2 className="text-2xl font-bold text-[#1B3326]">¡Evaluación Completada con Éxito!</h2>
                   <p className="text-sm text-gray-600 max-w-md mx-auto mt-1">
-                    Tu postulación para <strong>{formData.position}</strong> ha sido procesada por la plataforma de selección de Sensa People.
+                    Tu postulación para <strong>{formData.position}</strong> ha sido registrada en el sistema de selección de Sensa People.
                   </p>
                 </div>
 
@@ -671,132 +729,289 @@ export default function App() {
           </div>
         )}
 
-        {/* PANEL DE ENTREVISTA EN VIVO (ANALISTA) */}
+        {/* =======================================================
+            PANEL DE ANALISTA: BANDEJA EN VIVO Y EVALUACIÓN MEET
+        ======================================================= */}
         {activeTab === 'interviewer' && (
-          <div className="bg-white rounded-2xl shadow-sm border border-[#E5E0D0] p-6 sm:p-8 space-y-6">
-            <div className="flex flex-wrap items-center justify-between gap-4 border-b border-gray-200 pb-4">
+          <div className="space-y-6">
+            
+            {/* Header del Panel */}
+            <div className="bg-white rounded-2xl shadow-sm border border-[#E5E0D0] p-6 flex flex-wrap items-center justify-between gap-4">
               <div>
-                <span className="bg-[#C29F62]/20 text-[#8E7036] text-xs font-bold px-2.5 py-1 rounded-full uppercase">Área Restringida</span>
-                <h2 className="text-xl font-bold text-[#1B3326] mt-1">Scorecard de Entrevista en Vivo (Google Meet)</h2>
-                <p className="text-xs text-gray-500">Evaluación en tiempo real para analistas de selección de Sensa People.</p>
+                <span className="bg-[#C29F62]/20 text-[#8E7036] text-xs font-bold px-2.5 py-1 rounded-full uppercase">Área de Selección</span>
+                <h2 className="text-xl font-bold text-[#1B3326] mt-1">Bandeja de Postulantes en Tiempo Real</h2>
+                <p className="text-xs text-gray-500">Datos sincronizados directamente desde tu Base de Google Sheets.</p>
               </div>
 
-              <button
-                onClick={handleLogoutAnalyst}
-                className="px-3 py-1.5 rounded-lg border border-red-200 bg-red-50 text-red-700 text-xs font-semibold hover:bg-red-100 transition flex items-center space-x-1"
-              >
-                <LogOut className="w-3.5 h-3.5" />
-                <span>Cerrar Sesión</span>
-              </button>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 bg-[#F7F5EE] p-4 rounded-xl border border-[#E5E0D0]">
-              <label className="flex items-center space-x-2 text-xs font-semibold cursor-pointer">
-                <input type="checkbox" defaultChecked className="rounded text-[#1B3326]" />
-                <span>Fondo Virtual Oficial Sensa</span>
-              </label>
-              <label className="flex items-center space-x-2 text-xs font-semibold cursor-pointer">
-                <input type="checkbox" defaultChecked className="rounded text-[#1B3326]" />
-                <span>Headset / Audio sin ruidos</span>
-              </label>
-              <label className="flex items-center space-x-2 text-xs font-semibold cursor-pointer">
-                <input type="checkbox" defaultChecked className="rounded text-[#1B3326]" />
-                <span>Cámara activa y buena luz</span>
-              </label>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-xs font-bold uppercase text-gray-600 mb-1">Nombre del Candidato</label>
-                <input type="text" placeholder="Ej. Juan Pérez Ramos" className="w-full px-3 py-2 border rounded-lg text-sm" />
-              </div>
-              <div>
-                <label className="block text-xs font-bold uppercase text-gray-600 mb-1">Empresa / Campaña Solicitante</label>
-                <input type="text" placeholder="Ej. Campaña 15 Asesores Ventas" className="w-full px-3 py-2 border rounded-lg text-sm" />
-              </div>
-            </div>
-
-            <div className="space-y-4">
-              <h3 className="text-sm font-bold text-[#1B3326] uppercase tracking-wider">Calificación de Competencias STAR (1 a 5)</h3>
-              
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="p-3 border rounded-xl bg-gray-50">
-                  <div className="flex justify-between items-center mb-1">
-                    <span className="text-xs font-bold text-gray-700">1. Fluidez Verbal & Dicción</span>
-                    <span className="text-xs font-bold text-[#C29F62]">★★★★☆</span>
-                  </div>
-                  <p className="text-[11px] text-gray-500">Claridad al modular, seguridad al expresarse y tono profesional.</p>
-                </div>
-
-                <div className="p-3 border rounded-xl bg-gray-50">
-                  <div className="flex justify-between items-center mb-1">
-                    <span className="text-xs font-bold text-gray-700">2. Manejo de Objeciones (STAR)</span>
-                    <span className="text-xs font-bold text-[#C29F62]">★★★★★</span>
-                  </div>
-                  <p className="text-[11px] text-gray-500">Capacidad de argumentar soluciones ante negativas.</p>
-                </div>
-
-                <div className="p-3 border rounded-xl bg-gray-50">
-                  <div className="flex justify-between items-center mb-1">
-                    <span className="text-xs font-bold text-gray-700">3. Tolerancia a la Frustración</span>
-                    <span className="text-xs font-bold text-[#C29F62]">★★★★☆</span>
-                  </div>
-                  <p className="text-[11px] text-gray-500">Manejo emocional frente a llamadas frías o metas diarias exigentes.</p>
-                </div>
-
-                <div className="p-3 border rounded-xl bg-gray-50">
-                  <div className="flex justify-between items-center mb-1">
-                    <span className="text-xs font-bold text-gray-700">4. Energía y Orientación al Logro</span>
-                    <span className="text-xs font-bold text-[#C29F62]">★★★★★</span>
-                  </div>
-                  <p className="text-[11px] text-gray-500">Interés real en comisiones sin techo y crecimiento comercial.</p>
-                </div>
-              </div>
-            </div>
-
-            <div className="space-y-2 border-t pt-4">
-              <h3 className="text-sm font-bold text-[#1B3326] uppercase tracking-wider">Validación de Requisitos Técnicos</h3>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                <label className="flex items-center space-x-2 text-xs cursor-pointer p-2.5 border rounded-lg hover:bg-gray-50">
-                  <input type="checkbox" className="rounded text-[#1B3326]" />
-                  <span>PC Core i3/i5 + 8GB RAM</span>
-                </label>
-                <label className="flex items-center space-x-2 text-xs cursor-pointer p-2.5 border rounded-lg hover:bg-gray-50">
-                  <input type="checkbox" className="rounded text-[#1B3326]" />
-                  <span>Internet cableado estable</span>
-                </label>
-                <label className="flex items-center space-x-2 text-xs cursor-pointer p-2.5 border rounded-lg hover:bg-gray-50">
-                  <input type="checkbox" className="rounded text-[#1B3326]" />
-                  <span>Disponibilidad inmediata</span>
-                </label>
-              </div>
-            </div>
-
-            <div className="space-y-2 border-t pt-4">
-              <label className="block text-xs font-bold uppercase text-gray-600">Dictamen Final del Analista</label>
-              <div className="grid grid-cols-3 gap-3">
-                <button className="py-2.5 text-xs font-bold rounded-lg border-2 border-emerald-600 bg-emerald-50 text-emerald-800">
-                  ✓ Aprobado para Terna
+              <div className="flex items-center space-x-2">
+                <button
+                  onClick={fetchCandidates}
+                  className="px-3 py-2 rounded-lg border border-gray-200 bg-white text-gray-700 text-xs font-semibold hover:bg-gray-50 transition flex items-center space-x-1.5 shadow-sm"
+                >
+                  <RefreshCw className={`w-3.5 h-3.5 ${loadingCandidates ? 'animate-spin' : ''}`} />
+                  <span>Actualizar Lista</span>
                 </button>
-                <button className="py-2.5 text-xs font-bold rounded-lg border border-amber-400 bg-amber-50 text-amber-800">
-                  ⚠ Banco de Reserva
-                </button>
-                <button className="py-2.5 text-xs font-bold rounded-lg border border-red-300 bg-red-50 text-red-700">
-                  ✕ Descartado
+                <button
+                  onClick={handleLogoutAnalyst}
+                  className="px-3 py-2 rounded-lg border border-red-200 bg-red-50 text-red-700 text-xs font-semibold hover:bg-red-100 transition flex items-center space-x-1 shadow-sm"
+                >
+                  <LogOut className="w-3.5 h-3.5" />
+                  <span>Cerrar Sesión</span>
                 </button>
               </div>
             </div>
 
-            <div>
-              <label className="block text-xs font-bold uppercase text-gray-600 mb-1">Notas Ejecutivas para la Carpeta del Cliente</label>
-              <textarea 
-                rows="3" 
-                placeholder="Ej. Candidato con 2 años en ventas frías outbound. Muy buena modulación, perfil proactivo con necesidad de comisiones altas. Certijoven sin antecedentes."
-                className="w-full p-3 border rounded-lg text-xs focus:ring-2 focus:ring-[#1B3326]"
+            {/* Buscador */}
+            <div className="bg-white rounded-xl shadow-sm border border-[#E5E0D0] p-4 flex items-center space-x-3">
+              <Search className="w-4 h-4 text-gray-400 ml-1" />
+              <input
+                type="text"
+                placeholder="Buscar por Nombre, DNI o Puesto..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full text-xs text-gray-800 placeholder-gray-400 focus:outline-none"
               />
             </div>
+
+            {/* TABLA DE POSTULANTES REGISTRADOS */}
+            <div className="bg-white rounded-2xl shadow-sm border border-[#E5E0D0] overflow-hidden">
+              <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
+                <h3 className="text-xs font-bold text-gray-700 uppercase tracking-wider">
+                  Postulantes Registrados ({filteredCandidates.length})
+                </h3>
+                <span className="text-[11px] text-gray-500">Haz clic en un postulante para abrir su ficha y evaluar en Meet</span>
+              </div>
+
+              {loadingCandidates ? (
+                <div className="py-12 text-center text-xs text-gray-500">
+                  <RefreshCw className="w-6 h-6 animate-spin mx-auto text-[#1B3326] mb-2" />
+                  Cargando postulaciones desde Google Sheets...
+                </div>
+              ) : filteredCandidates.length === 0 ? (
+                <div className="py-12 text-center text-xs text-gray-400">
+                  No hay postulaciones registradas aún en tu hoja de cálculo.
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-xs text-gray-700">
+                    <thead className="bg-[#1B3326]/5 text-[#1B3326] uppercase font-bold text-[10px] tracking-wider border-b border-gray-200">
+                      <tr>
+                        <th className="py-3 px-4">Fecha</th>
+                        <th className="py-3 px-4">Postulante</th>
+                        <th className="py-3 px-4">Puesto</th>
+                        <th className="py-3 px-4 text-center">Atajos</th>
+                        <th className="py-3 px-4 text-center">Lógica</th>
+                        <th className="py-3 px-4 text-center">Conductual</th>
+                        <th className="py-3 px-4 text-center">Acción</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-100">
+                      {filteredCandidates.map((cand, idx) => (
+                        <tr 
+                          key={idx} 
+                          onClick={() => setSelectedCandidate(cand)}
+                          className={`hover:bg-[#F7F5EE] cursor-pointer transition ${
+                            selectedCandidate && selectedCandidate.dni === cand.dni ? 'bg-amber-50/80 font-medium' : ''
+                          }`}
+                        >
+                          <td className="py-3 px-4 text-[11px] text-gray-500 whitespace-nowrap">{cand.fecha || 'Reciente'}</td>
+                          <td className="py-3 px-4">
+                            <div className="font-bold text-[#1B3326]">{cand.fullName}</div>
+                            <div className="text-[11px] text-gray-500">DNI: {cand.dni} | Cel: {cand.phone}</div>
+                          </td>
+                          <td className="py-3 px-4 text-[11px] text-gray-600">{cand.position}</td>
+                          <td className="py-3 px-4 text-center">
+                            <span className="inline-block px-2 py-0.5 rounded-full text-[11px] font-bold bg-gray-100 text-gray-800">
+                              {cand.shortcutsScore}%
+                            </span>
+                          </td>
+                          <td className="py-3 px-4 text-center">
+                            <span className="inline-block px-2 py-0.5 rounded-full text-[11px] font-bold bg-blue-50 text-blue-800">
+                              {cand.psychometricScore}%
+                            </span>
+                          </td>
+                          <td className="py-3 px-4 text-center">
+                            <span className="inline-block px-2 py-0.5 rounded-full text-[11px] font-bold bg-amber-50 text-amber-800">
+                              {cand.psychologicalScore}%
+                            </span>
+                          </td>
+                          <td className="py-3 px-4 text-center">
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setSelectedCandidate(cand);
+                              }}
+                              className="px-2.5 py-1 rounded bg-[#1B3326] text-white text-[11px] font-semibold hover:bg-[#14261C] transition inline-flex items-center gap-1"
+                            >
+                              <Eye className="w-3 h-3" />
+                              <span>Evaluar</span>
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+
+            {/* FICHA DETALLADA Y SCORECARD DE ENTREVISTA EN VIVO */}
+            {selectedCandidate && (
+              <div className="bg-white rounded-2xl shadow-sm border-2 border-[#1B3326]/30 p-6 sm:p-8 space-y-6">
+                
+                {/* Cabecera del Candidato Seleccionado */}
+                <div className="flex flex-wrap items-center justify-between gap-4 border-b pb-4">
+                  <div>
+                    <span className="bg-[#1B3326] text-[#C29F62] text-[10px] font-bold px-2 py-0.5 rounded uppercase">Expediente Activo</span>
+                    <h3 className="text-2xl font-bold text-[#1B3326] mt-1">{selectedCandidate.fullName}</h3>
+                    <p className="text-xs text-gray-500">
+                      DNI: <strong>{selectedCandidate.dni}</strong> | Celular: <strong>{selectedCandidate.phone}</strong> | Correo: <strong>{selectedCandidate.email}</strong>
+                    </p>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <a
+                      href={`https://wa.me/${selectedCandidate.phone ? selectedCandidate.phone.replace(/[^0-9]/g, '') : ''}`}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="px-3 py-1.5 rounded-lg bg-[#25D366] text-white text-xs font-semibold hover:opacity-90 transition flex items-center space-x-1"
+                    >
+                      <MessageCircle className="w-3.5 h-3.5" />
+                      <span>WhatsApp</span>
+                    </a>
+                    <button
+                      onClick={() => setSelectedCandidate(null)}
+                      className="px-3 py-1.5 rounded-lg border text-xs text-gray-500 hover:bg-gray-50 transition"
+                    >
+                      Cerrar Ficha
+                    </button>
+                  </div>
+                </div>
+
+                {/* Resumen de Notas & Antecedentes */}
+                <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
+                  <div className="p-3 bg-gray-50 rounded-xl border text-center">
+                    <span className="text-[10px] font-bold uppercase text-gray-500">Atajos / PC</span>
+                    <p className="text-xl font-black text-[#1B3326]">{selectedCandidate.shortcutsScore}%</p>
+                  </div>
+                  <div className="p-3 bg-gray-50 rounded-xl border text-center">
+                    <span className="text-[10px] font-bold uppercase text-gray-500">Lógica Universal</span>
+                    <p className="text-xl font-black text-blue-900">{selectedCandidate.psychometricScore}%</p>
+                  </div>
+                  <div className="p-3 bg-gray-50 rounded-xl border text-center">
+                    <span className="text-[10px] font-bold uppercase text-gray-500">Perfil Conductual</span>
+                    <p className="text-xl font-black text-[#C29F62]">{selectedCandidate.psychologicalScore}%</p>
+                  </div>
+                  <div className="p-3 bg-[#F7F5EE] rounded-xl border text-center">
+                    <span className="text-[10px] font-bold uppercase text-gray-500">Hijos Menores</span>
+                    <p className="text-sm font-bold text-gray-800 mt-1">
+                      {selectedCandidate.hasChildren === 'Sí' ? `${selectedCandidate.childrenCount} hijo(s)` : 'Sin hijos'}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Adaptación o Salud */}
+                {selectedCandidate.healthAdaptation && selectedCandidate.healthAdaptation !== 'Ninguna' && (
+                  <div className="bg-amber-50 border border-amber-200 p-3 rounded-xl text-xs text-amber-900 flex items-start gap-2">
+                    <AlertCircle className="w-4 h-4 text-amber-600 mt-0.5 flex-shrink-0" />
+                    <div>
+                      <strong>Condición o requerimiento ergonómico declarado:</strong> {selectedCandidate.healthAdaptation}
+                    </div>
+                  </div>
+                )}
+
+                {/* Pauta STAR para Entrevista en Vivo (Google Meet) */}
+                <div className="border-t pt-4 space-y-4">
+                  <h4 className="text-xs font-bold text-[#1B3326] uppercase tracking-wider">
+                    Scorecard de Calificación en Vivo (Entrevista Meet)
+                  </h4>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div className="p-3 border rounded-xl bg-gray-50">
+                      <div className="flex justify-between items-center mb-1">
+                        <span className="text-xs font-bold text-gray-700">1. Fluidez Verbal & Dicción</span>
+                        <select className="text-xs border rounded p-1 font-bold text-[#C29F62] bg-white">
+                          <option>★★★★★ (Excelente)</option>
+                          <option>★★★★☆ (Muy Bueno)</option>
+                          <option>★★★☆☆ (Aceptable)</option>
+                          <option>★★☆☆☆ (Deficiente)</option>
+                        </select>
+                      </div>
+                      <p className="text-[11px] text-gray-500">Claridad de modulación, tono seguro y profesional.</p>
+                    </div>
+
+                    <div className="p-3 border rounded-xl bg-gray-50">
+                      <div className="flex justify-between items-center mb-1">
+                        <span className="text-xs font-bold text-gray-700">2. Manejo de Objeciones (STAR)</span>
+                        <select className="text-xs border rounded p-1 font-bold text-[#C29F62] bg-white">
+                          <option>★★★★★ (Excelente)</option>
+                          <option>★★★★☆ (Muy Bueno)</option>
+                          <option>★★★☆☆ (Aceptable)</option>
+                          <option>★★☆☆☆ (Deficiente)</option>
+                        </select>
+                      </div>
+                      <p className="text-[11px] text-gray-500">Capacidad de debatir objeciones y cerrar ventas.</p>
+                    </div>
+
+                    <div className="p-3 border rounded-xl bg-gray-50">
+                      <div className="flex justify-between items-center mb-1">
+                        <span className="text-xs font-bold text-gray-700">3. Tolerancia a la Frustración</span>
+                        <select className="text-xs border rounded p-1 font-bold text-[#C29F62] bg-white">
+                          <option>★★★★★ (Excelente)</option>
+                          <option>★★★★☆ (Muy Bueno)</option>
+                          <option>★★★☆☆ (Aceptable)</option>
+                          <option>★★☆☆☆ (Deficiente)</option>
+                        </select>
+                      </div>
+                      <p className="text-[11px] text-gray-500">Manejo emocional frente a llamadas frías o rechazo continuo.</p>
+                    </div>
+
+                    <div className="p-3 border rounded-xl bg-gray-50">
+                      <div className="flex justify-between items-center mb-1">
+                        <span className="text-xs font-bold text-gray-700">4. Orientación al Logro y Comisión</span>
+                        <select className="text-xs border rounded p-1 font-bold text-[#C29F62] bg-white">
+                          <option>★★★★★ (Excelente)</option>
+                          <option>★★★★☆ (Muy Bueno)</option>
+                          <option>★★★☆☆ (Aceptable)</option>
+                          <option>★★☆☆☆ (Deficiente)</option>
+                        </select>
+                      </div>
+                      <p className="text-[11px] text-gray-500">Hambre de ingresos altos, cumplimiento de métricas diarias.</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Dictamen del Analista */}
+                <div className="space-y-2 border-t pt-4">
+                  <label className="block text-xs font-bold uppercase text-gray-600">Dictamen Final del Analista</label>
+                  <div className="grid grid-cols-3 gap-3">
+                    <button className="py-2.5 text-xs font-bold rounded-lg border-2 border-emerald-600 bg-emerald-50 text-emerald-800 hover:bg-emerald-100 transition">
+                      ✓ Aprobado para Terna
+                    </button>
+                    <button className="py-2.5 text-xs font-bold rounded-lg border border-amber-400 bg-amber-50 text-amber-800 hover:bg-amber-100 transition">
+                      ⚠ Banco de Reserva
+                    </button>
+                    <button className="py-2.5 text-xs font-bold rounded-lg border border-red-300 bg-red-50 text-red-700 hover:bg-red-100 transition">
+                      ✕ Descartado
+                    </button>
+                  </div>
+                </div>
+
+                {/* Notas Ejecutivas */}
+                <div>
+                  <label className="block text-xs font-bold uppercase text-gray-600 mb-1">Notas Ejecutivas para la Presentación al Cliente</label>
+                  <textarea 
+                    rows="3" 
+                    placeholder="Ej. Postulante con 2 años de experiencia en ventas outbound. Excelente tono comercial, orientado al cumplimiento de comisiones. Certijoven limpio."
+                    className="w-full p-3 border rounded-lg text-xs focus:ring-2 focus:ring-[#1B3326]"
+                  />
+                </div>
+              </div>
+            )}
+
           </div>
         )}
+
       </main>
     </div>
   );
