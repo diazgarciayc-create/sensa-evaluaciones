@@ -15,19 +15,19 @@ export default function App() {
   const [gdprAccepted, setGdprAccepted] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Seguridad y datos del Analista
+  // Seguridad y autenticación del Analista
   const [isAnalystAuth, setIsAnalystAuth] = useState(false);
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [accessPassword, setAccessPassword] = useState('');
   const [authError, setAuthError] = useState(false);
   
-  // Lista de postulantes
+  // Lista de postulantes cargada desde Sheets
   const [candidatesList, setCandidatesList] = useState([]);
   const [loadingCandidates, setLoadingCandidates] = useState(false);
   const [selectedCandidate, setSelectedCandidate] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
 
-  // Formulario de Evaluación en Meet (por el analista)
+  // Formulario de Evaluación en Meet (Analista)
   const [evaluatorName, setEvaluatorName] = useState('');
   const [evalDate, setEvalDate] = useState('');
   const [star1, setStar1] = useState('★★★★★ (Excelente)');
@@ -39,7 +39,7 @@ export default function App() {
   const [isSavingEval, setIsSavingEval] = useState(false);
   const [saveSuccessMsg, setSaveSuccessMsg] = useState('');
 
-  // Cargar fecha y hora actual automáticamente para el analista
+  // Autocompletar fecha y hora actual en la evaluación
   useEffect(() => {
     const now = new Date();
     const formatted = now.toLocaleDateString('es-PE', { day: '2-digit', month: '2-digit', year: 'numeric' }) + 
@@ -47,7 +47,7 @@ export default function App() {
     setEvalDate(formatted);
   }, [selectedCandidate]);
 
-  // Form State del Postulante
+  // Estado del Postulante
   const [formData, setFormData] = useState({
     fullName: '',
     dni: '',
@@ -68,7 +68,7 @@ export default function App() {
     hijosBase64: ''
   });
 
-  // Convertir y comprimir archivos para asegurar subida rápida
+  // Compresión y lectura optimizada de archivos
   const handleFileUpload = (e, field) => {
     const file = e.target.files[0];
     if (!file) return;
@@ -100,7 +100,6 @@ export default function App() {
       };
       reader.readAsDataURL(file);
     } else {
-      // PDF o Documento
       const reader = new FileReader();
       reader.onloadend = () => {
         setFormData(prev => ({ ...prev, [field]: reader.result }));
@@ -109,7 +108,7 @@ export default function App() {
     }
   };
 
-  // Atajos de Teclado
+  // 1. Atajos de Teclado
   const [shortcutsAnswers, setShortcutsAnswers] = useState({});
   const shortcutsQuestions = [
     { id: 's1', q: '¿Qué atajo de teclado se utiliza para COPIAR un texto o elemento?', options: ['A) Ctrl + V', 'B) Ctrl + C', 'C) Ctrl + X', 'D) Ctrl + Z'], correct: 1 },
@@ -124,7 +123,7 @@ export default function App() {
     { id: 's10', q: '¿Qué tecla se presiona en el teclado para ACTUALIZAR o recargar una página web?', options: ['A) F2', 'B) F11', 'C) F5', 'D) F8'], correct: 2 }
   ];
 
-  // Lógica y Razonamiento
+  // 2. Lógica y Razonamiento
   const [logicAnswers, setLogicAnswers] = useState({});
   const logicQuestions = [
     { id: 'l1', q: 'Si una empresa proyecta un presupuesto de S/ 8,000 y se reduce un 15%, ¿cuánto presupuesto queda disponible?', options: ['A) S/ 6,500', 'B) S/ 6,800', 'C) S/ 7,200', 'D) S/ 7,000'], correct: 1 },
@@ -139,7 +138,7 @@ export default function App() {
     { id: 'l10', q: 'Completa la secuencia de letras: B, D, F, H, ...', options: ['A) I', 'B) K', 'C) J', 'D) L'], correct: 2 }
   ];
 
-  // Psicológico / Conductual
+  // 3. Psicológico / Conductual
   const [psychAnswers, setPsychAnswers] = useState({});
   const psychQuestions = [
     { id: 'p1', q: 'Frente a un día con múltiples imprevistos y cambios de prioridades por parte de gerencia, tu actitud habitual es:', options: ['A) Expresar molestia y exigir que no cambien los planes', 'B) Adaptarte con serenidad, reorganizar tu lista y avanzar por orden de relevancia', 'C) Dejar de trabajar hasta que definan algo fijo', 'D) Cumplir solo lo que te corresponde personalmente'], correct: 1 },
@@ -154,6 +153,7 @@ export default function App() {
     { id: 'p10', q: '¿Qué describe mejor tu motivación principal en el ámbito laboral?', options: ['A) Trabajar únicamente el mínimo indispensable para no ser despedido', 'B) Buscar la salida más rápida de cada tarea', 'C) Crecer profesionalmente mediante el mérito, la superación continua y el aporte de valor', 'D) Evitar asumir cualquier tipo de responsabilidad'], correct: 2 }
   ];
 
+  // Cálculo de resultados
   const calculateScores = () => {
     let sScore = 0;
     shortcutsQuestions.forEach(q => {
@@ -185,7 +185,7 @@ export default function App() {
     setStep(prev => prev + 1);
   };
 
-  // Enviar postulación a Google Apps Script
+  // Envío a Google Apps Script
   const handleFinishAssessment = async () => {
     setIsSubmitting(true);
     const { sScore, lScore, pScore } = calculateScores();
@@ -211,7 +211,7 @@ export default function App() {
     }
   };
 
-  // Cargar lista de postulantes desde Google Sheets
+  // Cargar postulantes de Google Sheets
   const fetchCandidates = async () => {
     setLoadingCandidates(true);
     try {
@@ -260,7 +260,7 @@ export default function App() {
     setSelectedCandidate(null);
   };
 
-  // Guardar Evaluación del Analista en Google Sheets
+  // Guardar dictamen del analista en Google Sheets
   const handleSaveEvaluation = async () => {
     if (!evaluatorName.trim()) {
       alert("Por favor ingresa tu Nombre y Apellido de Analista antes de guardar.");
@@ -358,7 +358,7 @@ export default function App() {
         </div>
       </header>
 
-      {/* Modal de Contraseña */}
+      {/* Modal de Acceso del Analista */}
       {showAuthModal && (
         <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
           <div className="bg-white rounded-2xl max-w-sm w-full p-6 shadow-2xl border border-gray-200">
@@ -413,7 +413,7 @@ export default function App() {
       {/* Contenedor Principal */}
       <main className="max-w-5xl mx-auto px-4 mt-8">
         
-        {/* POSTULANTE */}
+        {/* FLUJO DEL POSTULANTE */}
         {activeTab === 'candidate' && (
           <div className="bg-white rounded-2xl shadow-sm border border-[#E5E0D0] p-6 sm:p-8">
             
@@ -826,7 +826,7 @@ export default function App() {
               </div>
             )}
 
-            {/* PASO 6 */}
+            {/* PASO 6: CONFIRMACIÓN DEL POSTULANTE */}
             {step === 6 && (
               <div className="text-center py-6 space-y-6">
                 <div className="w-16 h-16 bg-[#1B3326]/10 text-[#1B3326] rounded-full flex items-center justify-center mx-auto">
@@ -879,7 +879,7 @@ export default function App() {
           </div>
         )}
 
-        {/* ANALISTA */}
+        {/* PANEL DE ANALISTA (MEET) */}
         {activeTab === 'interviewer' && (
           <div className="space-y-6">
             
@@ -1012,11 +1012,11 @@ export default function App() {
               )}
             </div>
 
-            {/* FICHA DETALLADA Y SCORECARD DE ENTREVISTA EN VIVO */}
+            {/* FICHA DETALLADA Y SCORECARD MEET */}
             {selectedCandidate && (
               <div className="bg-white rounded-2xl shadow-sm border-2 border-[#1B3326]/30 p-6 sm:p-8 space-y-6">
                 
-                {/* Cabecera */}
+                {/* Cabecera del Candidato */}
                 <div className="flex flex-wrap items-center justify-between gap-4 border-b pb-4">
                   <div>
                     <span className="bg-[#1B3326] text-[#C29F62] text-[10px] font-bold px-2 py-0.5 rounded uppercase">Expediente Activo</span>
@@ -1049,7 +1049,7 @@ export default function App() {
                   </div>
                 </div>
 
-                {/* Resumen de Notas */}
+                {/* Resumen de Puntajes */}
                 <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
                   <div className="p-3 bg-gray-50 rounded-xl border text-center">
                     <span className="text-[10px] font-bold uppercase text-gray-500">Atajos / PC</span>
@@ -1071,7 +1071,7 @@ export default function App() {
                   </div>
                 </div>
 
-                {/* Documentos Adjuntos */}
+                {/* Documentos Adjuntos en Drive */}
                 <div className="border-t pt-4">
                   <h4 className="text-xs font-bold text-[#1B3326] uppercase tracking-wider mb-3">
                     Documentos y Expediente del Postulante
@@ -1127,7 +1127,7 @@ export default function App() {
                   </div>
                 </div>
 
-                {/* DATOS DEL ANALISTA & FECHA DE EVALUACIÓN */}
+                {/* DATOS DEL EVALUADOR */}
                 <div className="bg-[#1B3326]/5 p-4 rounded-xl border border-[#1B3326]/20">
                   <h4 className="text-xs font-bold text-[#1B3326] uppercase tracking-wider mb-3">
                     Datos del Evaluador (Analista de Sensa)
@@ -1290,7 +1290,7 @@ export default function App() {
                   />
                 </div>
 
-                {/* MENSAJE DE CONFIRMACIÓN */}
+                {/* Mensaje de Confirmación */}
                 {saveSuccessMsg && (
                   <div className="p-3 bg-emerald-50 border border-emerald-300 rounded-xl text-xs font-bold text-emerald-800 flex items-center gap-2">
                     <CheckCircle2 className="w-4 h-4 text-emerald-600" />
@@ -1298,7 +1298,7 @@ export default function App() {
                   </div>
                 )}
 
-                {/* BOTÓN OFICIAL DE GUARDAR */}
+                {/* Botón Guardar */}
                 <div className="flex justify-end pt-2">
                   <button
                     type="button"
