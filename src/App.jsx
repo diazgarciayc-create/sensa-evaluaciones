@@ -6,7 +6,7 @@ import {
   Lock, LogOut, KeyRound, RefreshCw, Eye, Search, MapPin, Save, User, Calendar
 } from 'lucide-react';
 
-const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwTqdEZ3S1gyD2PbVYqpXJC7d9WElGletaN3ld8KGZFq2w0mr9qa6vSiab8_1lS18kFJQ/exec";
+const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzi-WFJWzJtI7tyuqxRwgytFB4dTVhLj3RAw9vbIgRwhGPjulZXEWxgMVrQ-qF1LYfxxw/exec";
 const ANALYST_SECRET_PIN = "sensa2026";
 
 export default function App() {
@@ -68,7 +68,7 @@ export default function App() {
     hijosBase64: ''
   });
 
-  // Compresión y lectura optimizada de archivos
+  // Compresión y lectura de archivos
   const handleFileUpload = (e, field) => {
     const file = e.target.files[0];
     if (!file) return;
@@ -81,7 +81,7 @@ export default function App() {
           const canvas = document.createElement('canvas');
           let width = img.width;
           let height = img.height;
-          const maxDim = 1200;
+          const maxDim = 1000;
           if (width > height && width > maxDim) {
             height = Math.round((height * maxDim) / width);
             width = maxDim;
@@ -93,7 +93,7 @@ export default function App() {
           canvas.height = height;
           const ctx = canvas.getContext('2d');
           ctx.drawImage(img, 0, 0, width, height);
-          const compressed = canvas.toDataURL('image/jpeg', 0.7);
+          const compressed = canvas.toDataURL('image/jpeg', 0.6);
           setFormData(prev => ({ ...prev, [field]: compressed }));
         };
         img.src = event.target.result;
@@ -153,7 +153,6 @@ export default function App() {
     { id: 'p10', q: '¿Qué describe mejor tu motivación principal en el ámbito laboral?', options: ['A) Trabajar únicamente el mínimo indispensable para no ser despedido', 'B) Buscar la salida más rápida de cada tarea', 'C) Crecer profesionalmente mediante el mérito, la superación continua y el aporte de valor', 'D) Evitar asumir cualquier tipo de responsabilidad'], correct: 2 }
   ];
 
-  // Cálculo de resultados
   const calculateScores = () => {
     let sScore = 0;
     shortcutsQuestions.forEach(q => {
@@ -185,7 +184,7 @@ export default function App() {
     setStep(prev => prev + 1);
   };
 
-  // Envío a Google Apps Script con modo no-cors y texto plano
+  // Envío a Google Apps Script
   const handleFinishAssessment = async () => {
     setIsSubmitting(true);
     const { sScore, lScore, pScore } = calculateScores();
@@ -212,7 +211,7 @@ export default function App() {
     }
   };
 
-  // Cargar postulantes de Google Sheets
+  // Cargar lista desde Google Sheets
   const fetchCandidates = async () => {
     setLoadingCandidates(true);
     try {
@@ -261,7 +260,7 @@ export default function App() {
     setSelectedCandidate(null);
   };
 
-  // Guardar dictamen del analista en Google Sheets
+  // Guardar Evaluación del Analista
   const handleSaveEvaluation = async () => {
     if (!evaluatorName.trim()) {
       alert("Por favor ingresa tu Nombre y Apellido de Analista antes de guardar.");
@@ -292,7 +291,7 @@ export default function App() {
         body: JSON.stringify(evaluationPayload)
       });
 
-      setSaveSuccessMsg('✓ ¡Evaluación guardada exitosamente en la base de datos de Google Drive / Sheets!');
+      setSaveSuccessMsg('✓ ¡Evaluación guardada exitosamente en la base de datos de Google Sheets!');
       fetchCandidates();
     } catch (err) {
       console.error("Error al guardar evaluación:", err);
@@ -311,7 +310,6 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-[#F7F5EE] text-[#0F1A14] font-sans pb-16">
-      {/* Encabezado */}
       <header className="bg-white border-b border-[#E5E0D0] sticky top-0 z-30 shadow-sm">
         <div className="max-w-6xl mx-auto px-4 py-3 flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center space-x-3">
@@ -752,7 +750,7 @@ export default function App() {
                     <div>
                       <h4 className="text-xs font-bold text-[#1B3326] uppercase">¿Cómo obtener tu Certijoven / Certificado Único Laboral (CUL)?</h4>
                       <p className="text-xs text-gray-600 mt-1 leading-relaxed">
-                        Es un certificado 100% oficial y gratuito emitido por el MTPE. Contiene antecedentes policiales, penales y trayectoria laboral formal:
+                        Es un certificado 100% oficial y gratuito emitido por el MTPE:
                       </p>
                       <ol className="text-xs text-gray-600 list-decimal list-inside mt-2 space-y-1 font-medium">
                         <li>Ingresa a: <a href="https://www.empleosperu.gob.pe" target="_blank" rel="noreferrer" className="text-[#C29F62] underline font-bold">empleosperu.gob.pe</a></li>
@@ -767,7 +765,7 @@ export default function App() {
                   <div className="border-2 border-dashed border-gray-300 rounded-xl p-4 text-center hover:border-[#1B3326] transition">
                     <FileText className="w-6 h-6 mx-auto text-gray-400 mb-2" />
                     <p className="text-xs font-bold text-gray-700">Currículum Vitae (CV)</p>
-                    <p className="text-[11px] text-gray-400 mb-2">Formato PDF actualizado</p>
+                    <p className="text-[11px] text-gray-400 mb-2">Formato PDF</p>
                     <input 
                       type="file" 
                       accept=".pdf,.doc,.docx"
@@ -779,7 +777,7 @@ export default function App() {
                   <div className="border-2 border-dashed border-gray-300 rounded-xl p-4 text-center hover:border-[#1B3326] transition">
                     <FileText className="w-6 h-6 mx-auto text-gray-400 mb-2" />
                     <p className="text-xs font-bold text-gray-700">DNI Ambos Lados</p>
-                    <p className="text-[11px] text-gray-400 mb-2">Foto clara o PDF legible</p>
+                    <p className="text-[11px] text-gray-400 mb-2">Foto clara o PDF</p>
                     <input 
                       type="file" 
                       accept=".pdf,.png,.jpg,.jpeg"
@@ -791,7 +789,7 @@ export default function App() {
                   <div className="border-2 border-dashed border-gray-300 rounded-xl p-4 text-center hover:border-[#1B3326] transition sm:col-span-2">
                     <FileText className="w-6 h-6 mx-auto text-[#C29F62] mb-2" />
                     <p className="text-xs font-bold text-gray-700">Certijoven / Certificado Único Laboral (CUL)</p>
-                    <p className="text-[11px] text-gray-400 mb-2">Descargado de empleosperu.gob.pe (Oficial MTPE)</p>
+                    <p className="text-[11px] text-gray-400 mb-2">Descargado de empleosperu.gob.pe (MTPE)</p>
                     <input 
                       type="file" 
                       accept=".pdf,.png,.jpg,.jpeg"
@@ -804,7 +802,7 @@ export default function App() {
                     <div className="border-2 border-dashed border-amber-300 bg-amber-50/50 rounded-xl p-4 text-center hover:border-amber-500 transition sm:col-span-2">
                       <FileText className="w-6 h-6 mx-auto text-amber-600 mb-2" />
                       <p className="text-xs font-bold text-gray-700">DNI de los Hijos Menores de 18 años</p>
-                      <p className="text-[11px] text-gray-500 mb-2">Requerido para asignación familiar</p>
+                      <p className="text-[11px] text-gray-500 mb-2">Para asignación familiar</p>
                       <input 
                         type="file" 
                         accept=".pdf,.png,.jpg,.jpeg"
@@ -821,14 +819,14 @@ export default function App() {
                     disabled={isSubmitting}
                     className="bg-[#1B3326] text-white px-8 py-3 rounded-xl font-bold text-sm hover:bg-[#14261C] transition shadow-md flex items-center space-x-2 disabled:opacity-50"
                   >
-                    <span>{isSubmitting ? 'Subiendo archivos y registrando...' : 'Finalizar y Enviar Evaluación'}</span>
+                    <span>{isSubmitting ? 'Registrando postulación...' : 'Finalizar y Enviar Evaluación'}</span>
                     <CheckCircle2 className="w-4 h-4 text-[#C29F62]" />
                   </button>
                 </div>
               </div>
             )}
 
-            {/* PASO 6: CONFIRMACIÓN DEL POSTULANTE */}
+            {/* PASO 6 */}
             {step === 6 && (
               <div className="text-center py-6 space-y-6">
                 <div className="w-16 h-16 bg-[#1B3326]/10 text-[#1B3326] rounded-full flex items-center justify-center mx-auto">
@@ -838,7 +836,7 @@ export default function App() {
                 <div>
                   <h2 className="text-2xl font-bold text-[#1B3326]">¡Evaluación Completada con Éxito!</h2>
                   <p className="text-sm text-gray-600 max-w-md mx-auto mt-1">
-                    Tu postulación para <strong>{formData.position}</strong> ha sido registrada en el sistema de selección de Sensa People.
+                    Tu postulación para <strong>{formData.position}</strong> ha sido registrada formalmente en Sensa People.
                   </p>
                 </div>
 
@@ -1018,7 +1016,6 @@ export default function App() {
             {selectedCandidate && (
               <div className="bg-white rounded-2xl shadow-sm border-2 border-[#1B3326]/30 p-6 sm:p-8 space-y-6">
                 
-                {/* Cabecera del Candidato */}
                 <div className="flex flex-wrap items-center justify-between gap-4 border-b pb-4">
                   <div>
                     <span className="bg-[#1B3326] text-[#C29F62] text-[10px] font-bold px-2 py-0.5 rounded uppercase">Expediente Activo</span>
@@ -1051,7 +1048,6 @@ export default function App() {
                   </div>
                 </div>
 
-                {/* Resumen de Puntajes */}
                 <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
                   <div className="p-3 bg-gray-50 rounded-xl border text-center">
                     <span className="text-[10px] font-bold uppercase text-gray-500">Atajos / PC</span>
@@ -1292,7 +1288,6 @@ export default function App() {
                   />
                 </div>
 
-                {/* Mensaje de Confirmación */}
                 {saveSuccessMsg && (
                   <div className="p-3 bg-emerald-50 border border-emerald-300 rounded-xl text-xs font-bold text-emerald-800 flex items-center gap-2">
                     <CheckCircle2 className="w-4 h-4 text-emerald-600" />
@@ -1300,7 +1295,6 @@ export default function App() {
                   </div>
                 )}
 
-                {/* Botón Guardar */}
                 <div className="flex justify-end pt-2">
                   <button
                     type="button"
