@@ -47,7 +47,7 @@ export default function App() {
     setEvalDate(formatted);
   }, [selectedCandidate]);
 
-  // Estado del Postulante
+  // Estado del Formulario del Postulante
   const [formData, setFormData] = useState({
     fullName: '',
     dni: '',
@@ -185,7 +185,7 @@ export default function App() {
     setStep(prev => prev + 1);
   };
 
-  // Envío a Google Apps Script
+  // Envío a Google Apps Script con modo no-cors y texto plano
   const handleFinishAssessment = async () => {
     setIsSubmitting(true);
     const { sScore, lScore, pScore } = calculateScores();
@@ -200,7 +200,8 @@ export default function App() {
     try {
       await fetch(SCRIPT_URL, {
         method: 'POST',
-        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        mode: 'no-cors',
+        headers: { 'Content-Type': 'text/plain' },
         body: JSON.stringify(finalData)
       });
     } catch (err) {
@@ -286,7 +287,8 @@ export default function App() {
     try {
       await fetch(SCRIPT_URL, {
         method: 'POST',
-        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        mode: 'no-cors',
+        headers: { 'Content-Type': 'text/plain' },
         body: JSON.stringify(evaluationPayload)
       });
 
