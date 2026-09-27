@@ -10,7 +10,7 @@ const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwTqdEZ3S1gyD2PbVYqp
 const ANALYST_SECRET_PIN = "sensa2026";
 
 export default function App() {
-  const [activeTab, setActiveTab] = useState('candidate'); // 'candidate' | 'interviewer'
+  const [activeTab, setActiveTab] = useState('candidate');
   const [step, setStep] = useState(1);
   const [gdprAccepted, setGdprAccepted] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -21,7 +21,7 @@ export default function App() {
   const [accessPassword, setAccessPassword] = useState('');
   const [authError, setAuthError] = useState(false);
   
-  // Lista de postulantes cargados desde Google Sheets
+  // Lista de postulantes
   const [candidatesList, setCandidatesList] = useState([]);
   const [loadingCandidates, setLoadingCandidates] = useState(false);
   const [selectedCandidate, setSelectedCandidate] = useState(null);
@@ -42,9 +42,25 @@ export default function App() {
     shortcutsScore: 0,
     psychometricScore: 0,
     psychologicalScore: 0,
+    cvBase64: '',
+    dniBase64: '',
+    certijovenBase64: '',
+    hijosBase64: ''
   });
 
-  // Atajos de Teclado (10 preguntas)
+  // Convertidor de archivos a Base64
+  const handleFileUpload = (e, field) => {
+    const file = e.target.files[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setFormData(prev => ({ ...prev, [field]: reader.result }));
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  // Atajos de Teclado
   const [shortcutsAnswers, setShortcutsAnswers] = useState({});
   const shortcutsQuestions = [
     { id: 's1', q: '¿Qué atajo de teclado se utiliza para COPIAR un texto o elemento?', options: ['A) Ctrl + V', 'B) Ctrl + C', 'C) Ctrl + X', 'D) Ctrl + Z'], correct: 1 },
@@ -59,7 +75,7 @@ export default function App() {
     { id: 's10', q: '¿Qué tecla se presiona en el teclado para ACTUALIZAR o recargar una página web?', options: ['A) F2', 'B) F11', 'C) F5', 'D) F8'], correct: 2 }
   ];
 
-  // Lógica y Razonamiento (10 preguntas)
+  // Lógica y Razonamiento
   const [logicAnswers, setLogicAnswers] = useState({});
   const logicQuestions = [
     { id: 'l1', q: 'Si una empresa proyecta un presupuesto de S/ 8,000 y se reduce un 15%, ¿cuánto presupuesto queda disponible?', options: ['A) S/ 6,500', 'B) S/ 6,800', 'C) S/ 7,200', 'D) S/ 7,000'], correct: 1 },
@@ -74,7 +90,7 @@ export default function App() {
     { id: 'l10', q: 'Completa la secuencia de letras: B, D, F, H, ...', options: ['A) I', 'B) K', 'C) J', 'D) L'], correct: 2 }
   ];
 
-  // Psicológico / Conductual (10 preguntas)
+  // Psicológico / Conductual
   const [psychAnswers, setPsychAnswers] = useState({});
   const psychQuestions = [
     { id: 'p1', q: 'Frente a un día con múltiples imprevistos y cambios de prioridades por parte de gerencia, tu actitud habitual es:', options: ['A) Expresar molestia y exigir que no cambien los planes', 'B) Adaptarte con serenidad, reorganizar tu lista y avanzar por orden de relevancia', 'C) Dejar de trabajar hasta que definan algo fijo', 'D) Cumplir solo lo que te corresponde personalmente'], correct: 1 },
@@ -89,7 +105,6 @@ export default function App() {
     { id: 'p10', q: '¿Qué describe mejor tu motivación principal en el ámbito laboral?', options: ['A) Trabajar únicamente el mínimo indispensable para no ser despedido', 'B) Buscar la salida más rápida de cada tarea', 'C) Crecer profesionalmente mediante el mérito, la superación continua y el aporte de valor', 'D) Evitar asumir cualquier tipo de responsabilidad'], correct: 2 }
   ];
 
-  // Cálculo de puntajes
   const calculateScores = () => {
     let sScore = 0;
     shortcutsQuestions.forEach(q => {
@@ -121,7 +136,6 @@ export default function App() {
     setStep(prev => prev + 1);
   };
 
-  // Enviar postulación a Google Sheets
   const handleFinishAssessment = async () => {
     setIsSubmitting(true);
     const { sScore, lScore, pScore } = calculateScores();
@@ -141,21 +155,20 @@ export default function App() {
         body: JSON.stringify(finalData)
       });
     } catch (err) {
-      console.error("Error al enviar postulación:", err);
+      console.error("Error al enviar:", err);
     } finally {
       setIsSubmitting(false);
       setStep(6);
     }
   };
 
-  // Cargar lista de postulantes desde Google Sheets
   const fetchCandidates = async () => {
     setLoadingCandidates(true);
     try {
       const res = await fetch(SCRIPT_URL);
       const data = await res.json();
       if (Array.isArray(data)) {
-        setCandidatesList(data.reverse()); // Los más recientes primero
+        setCandidatesList(data.reverse());
       }
     } catch (err) {
       console.error("Error al cargar postulantes:", err);
@@ -170,7 +183,6 @@ export default function App() {
     }
   }, [isAnalystAuth, activeTab]);
 
-  // Manejo de pestaña del Analista
   const handleAnalystTabClick = () => {
     if (isAnalystAuth) {
       setActiveTab('interviewer');
@@ -199,10 +211,10 @@ export default function App() {
   };
 
   const filteredCandidates = candidatesList.filter(c => 
-    (c.fullName && c.fullName.toString().toLowerCase().includes(searchTerm.toLowerCase())) ||
-    (c.dni && c.dni.toString().includes(searchTerm)) ||
-    (c.district && c.district.toString().toLowerCase().includes(searchTerm.toLowerCase())) ||
-    (c.position && c.position.toString().toLowerCase().includes(searchTerm.toLowerCase()))
+    (c && c.fullName && c.fullName.toString().toLowerCase().includes(searchTerm.toLowerCase())) ||
+    (c && c.dni && c.dni.toString().includes(searchTerm)) ||
+    (c && c.district && c.district.toString().toLowerCase().includes(searchTerm.toLowerCase())) ||
+    (c && c.position && c.position.toString().toLowerCase().includes(searchTerm.toLowerCase()))
   );
 
   return (
@@ -311,9 +323,7 @@ export default function App() {
       {/* Contenedor Principal */}
       <main className="max-w-5xl mx-auto px-4 mt-8">
         
-        {/* =============================
-            FLUJO POSTULANTE
-        ============================= */}
+        {/* POSTULANTE */}
         {activeTab === 'candidate' && (
           <div className="bg-white rounded-2xl shadow-sm border border-[#E5E0D0] p-6 sm:p-8">
             
@@ -388,7 +398,6 @@ export default function App() {
                     />
                   </div>
 
-                  {/* NUEVOS CAMPOS: UBICACIÓN Y DIRECCIÓN */}
                   <div>
                     <label className="block text-xs font-bold uppercase tracking-wider text-[#1B3326] mb-1 flex items-center gap-1">
                       <MapPin className="w-3.5 h-3.5 text-[#C29F62]" /> Distrito / Ciudad de Residencia *
@@ -667,29 +676,49 @@ export default function App() {
                     <FileText className="w-6 h-6 mx-auto text-gray-400 mb-2" />
                     <p className="text-xs font-bold text-gray-700">Currículum Vitae (CV)</p>
                     <p className="text-[11px] text-gray-400 mb-2">Formato PDF actualizado</p>
-                    <input type="file" className="text-xs text-gray-500 file:mr-2 file:py-1 file:px-2 file:rounded file:border-0 file:text-xs file:bg-[#1B3326] file:text-white" />
+                    <input 
+                      type="file" 
+                      accept=".pdf,.doc,.docx"
+                      onChange={(e) => handleFileUpload(e, 'cvBase64')}
+                      className="text-xs text-gray-500 file:mr-2 file:py-1 file:px-2 file:rounded file:border-0 file:text-xs file:bg-[#1B3326] file:text-white" 
+                    />
                   </div>
 
                   <div className="border-2 border-dashed border-gray-300 rounded-xl p-4 text-center hover:border-[#1B3326] transition">
                     <FileText className="w-6 h-6 mx-auto text-gray-400 mb-2" />
                     <p className="text-xs font-bold text-gray-700">DNI Ambos Lados</p>
                     <p className="text-[11px] text-gray-400 mb-2">Foto clara o PDF legible</p>
-                    <input type="file" className="text-xs text-gray-500 file:mr-2 file:py-1 file:px-2 file:rounded file:border-0 file:text-xs file:bg-[#1B3326] file:text-white" />
+                    <input 
+                      type="file" 
+                      accept=".pdf,.png,.jpg,.jpeg"
+                      onChange={(e) => handleFileUpload(e, 'dniBase64')}
+                      className="text-xs text-gray-500 file:mr-2 file:py-1 file:px-2 file:rounded file:border-0 file:text-xs file:bg-[#1B3326] file:text-white" 
+                    />
                   </div>
 
                   <div className="border-2 border-dashed border-gray-300 rounded-xl p-4 text-center hover:border-[#1B3326] transition sm:col-span-2">
                     <FileText className="w-6 h-6 mx-auto text-[#C29F62] mb-2" />
                     <p className="text-xs font-bold text-gray-700">Certijoven / Certificado Único Laboral (CUL)</p>
                     <p className="text-[11px] text-gray-400 mb-2">Descargado de empleosperu.gob.pe (Oficial MTPE)</p>
-                    <input type="file" className="text-xs text-gray-500 file:mr-2 file:py-1 file:px-2 file:rounded file:border-0 file:text-xs file:bg-[#C29F62] file:text-white" />
+                    <input 
+                      type="file" 
+                      accept=".pdf,.png,.jpg,.jpeg"
+                      onChange={(e) => handleFileUpload(e, 'certijovenBase64')}
+                      className="text-xs text-gray-500 file:mr-2 file:py-1 file:px-2 file:rounded file:border-0 file:text-xs file:bg-[#C29F62] file:text-white" 
+                    />
                   </div>
 
                   {formData.hasChildren === 'Sí' && (
                     <div className="border-2 border-dashed border-amber-300 bg-amber-50/50 rounded-xl p-4 text-center hover:border-amber-500 transition sm:col-span-2">
                       <FileText className="w-6 h-6 mx-auto text-amber-600 mb-2" />
                       <p className="text-xs font-bold text-gray-700">DNI de los Hijos Menores de 18 años</p>
-                      <p className="text-[11px] text-gray-500 mb-2">Requerido para cálculo de asignación familiar y planilla formal</p>
-                      <input type="file" multiple className="text-xs text-gray-500 file:mr-2 file:py-1 file:px-2 file:rounded file:border-0 file:text-xs file:bg-amber-600 file:text-white" />
+                      <p className="text-[11px] text-gray-500 mb-2">Requerido para asignación familiar</p>
+                      <input 
+                        type="file" 
+                        accept=".pdf,.png,.jpg,.jpeg"
+                        onChange={(e) => handleFileUpload(e, 'hijosBase64')}
+                        className="text-xs text-gray-500 file:mr-2 file:py-1 file:px-2 file:rounded file:border-0 file:text-xs file:bg-amber-600 file:text-white" 
+                      />
                     </div>
                   )}
                 </div>
@@ -700,7 +729,7 @@ export default function App() {
                     disabled={isSubmitting}
                     className="bg-[#1B3326] text-white px-8 py-3 rounded-xl font-bold text-sm hover:bg-[#14261C] transition shadow-md flex items-center space-x-2 disabled:opacity-50"
                   >
-                    <span>{isSubmitting ? 'Registrando en el sistema...' : 'Finalizar y Enviar Evaluación'}</span>
+                    <span>{isSubmitting ? 'Subiendo archivos y registrando...' : 'Finalizar y Enviar Evaluación'}</span>
                     <CheckCircle2 className="w-4 h-4 text-[#C29F62]" />
                   </button>
                 </div>
@@ -760,13 +789,10 @@ export default function App() {
           </div>
         )}
 
-        {/* =======================================================
-            PANEL DE ANALISTA: BANDEJA EN VIVO Y EVALUACIÓN MEET
-        ======================================================= */}
+        {/* ANALISTA */}
         {activeTab === 'interviewer' && (
           <div className="space-y-6">
             
-            {/* Header del Panel */}
             <div className="bg-white rounded-2xl shadow-sm border border-[#E5E0D0] p-6 flex flex-wrap items-center justify-between gap-4">
               <div>
                 <span className="bg-[#C29F62]/20 text-[#8E7036] text-xs font-bold px-2.5 py-1 rounded-full uppercase">Área de Selección</span>
@@ -792,7 +818,6 @@ export default function App() {
               </div>
             </div>
 
-            {/* Buscador */}
             <div className="bg-white rounded-xl shadow-sm border border-[#E5E0D0] p-4 flex items-center space-x-3">
               <Search className="w-4 h-4 text-gray-400 ml-1" />
               <input
@@ -804,7 +829,7 @@ export default function App() {
               />
             </div>
 
-            {/* TABLA DE POSTULANTES REGISTRADOS */}
+            {/* TABLA DE POSTULANTES */}
             <div className="bg-white rounded-2xl shadow-sm border border-[#E5E0D0] overflow-hidden">
               <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
                 <h3 className="text-xs font-bold text-gray-700 uppercase tracking-wider">
@@ -843,32 +868,34 @@ export default function App() {
                           key={idx} 
                           onClick={() => setSelectedCandidate(cand)}
                           className={`hover:bg-[#F7F5EE] cursor-pointer transition ${
-                            selectedCandidate && selectedCandidate.dni === cand.dni ? 'bg-amber-50/80 font-medium' : ''
+                            selectedCandidate && selectedCandidate.dni === cand?.dni ? 'bg-amber-50/80 font-medium' : ''
                           }`}
                         >
-                          <td className="py-3 px-4 text-[11px] text-gray-500 whitespace-nowrap">{cand.fecha || 'Reciente'}</td>
-                          <td className="py-3 px-4">
-                            <div className="font-bold text-[#1B3326]">{cand.fullName}</div>
-                            <div className="text-[11px] text-gray-500">DNI: {cand.dni} | Cel: {cand.phone}</div>
+                          <td className="py-3 px-4 text-[11px] text-gray-500 whitespace-nowrap">
+                            {cand?.fecha ? cand.fecha.toString().substring(0, 10) : 'Reciente'}
                           </td>
                           <td className="py-3 px-4">
-                            <div className="font-semibold text-gray-800">{cand.district || 'No especificado'}</div>
-                            <div className="text-[10px] text-gray-500 truncate max-w-[150px]">{cand.address || ''}</div>
+                            <div className="font-bold text-[#1B3326]">{cand?.fullName || 'Sin nombre'}</div>
+                            <div className="text-[11px] text-gray-500">DNI: {cand?.dni || '-'} | Cel: {cand?.phone || '-'}</div>
                           </td>
-                          <td className="py-3 px-4 text-[11px] text-gray-600">{cand.position}</td>
+                          <td className="py-3 px-4">
+                            <div className="font-semibold text-gray-800">{cand?.district || 'No especificado'}</div>
+                            <div className="text-[10px] text-gray-500 truncate max-w-[150px]">{cand?.address || ''}</div>
+                          </td>
+                          <td className="py-3 px-4 text-[11px] text-gray-600">{cand?.position || '-'}</td>
                           <td className="py-3 px-4 text-center">
                             <span className="inline-block px-2 py-0.5 rounded-full text-[11px] font-bold bg-gray-100 text-gray-800">
-                              {cand.shortcutsScore}%
+                              {cand?.shortcutsScore ?? 0}%
                             </span>
                           </td>
                           <td className="py-3 px-4 text-center">
                             <span className="inline-block px-2 py-0.5 rounded-full text-[11px] font-bold bg-blue-50 text-blue-800">
-                              {cand.psychometricScore}%
+                              {cand?.psychometricScore ?? 0}%
                             </span>
                           </td>
                           <td className="py-3 px-4 text-center">
                             <span className="inline-block px-2 py-0.5 rounded-full text-[11px] font-bold bg-amber-50 text-amber-800">
-                              {cand.psychologicalScore}%
+                              {cand?.psychologicalScore ?? 0}%
                             </span>
                           </td>
                           <td className="py-3 px-4 text-center">
@@ -895,23 +922,23 @@ export default function App() {
             {selectedCandidate && (
               <div className="bg-white rounded-2xl shadow-sm border-2 border-[#1B3326]/30 p-6 sm:p-8 space-y-6">
                 
-                {/* Cabecera del Candidato Seleccionado */}
+                {/* Cabecera */}
                 <div className="flex flex-wrap items-center justify-between gap-4 border-b pb-4">
                   <div>
                     <span className="bg-[#1B3326] text-[#C29F62] text-[10px] font-bold px-2 py-0.5 rounded uppercase">Expediente Activo</span>
-                    <h3 className="text-2xl font-bold text-[#1B3326] mt-1">{selectedCandidate.fullName}</h3>
+                    <h3 className="text-2xl font-bold text-[#1B3326] mt-1">{selectedCandidate?.fullName || 'Postulante'}</h3>
                     <p className="text-xs text-gray-500">
-                      DNI: <strong>{selectedCandidate.dni}</strong> | Celular: <strong>{selectedCandidate.phone}</strong> | Correo: <strong>{selectedCandidate.email}</strong>
+                      DNI: <strong>{selectedCandidate?.dni || '-'}</strong> | Celular: <strong>{selectedCandidate?.phone || '-'}</strong> | Correo: <strong>{selectedCandidate?.email || '-'}</strong>
                     </p>
                     <p className="text-xs text-[#1B3326] font-medium mt-1 flex items-center gap-1">
                       <MapPin className="w-3.5 h-3.5 text-[#C29F62]" /> 
-                      <strong>Distrito:</strong> {selectedCandidate.district || 'No especificado'} &nbsp;|&nbsp; <strong>Dirección:</strong> {selectedCandidate.address || 'No especificada'}
+                      <strong>Distrito:</strong> {selectedCandidate?.district || 'No especificado'} &nbsp;|&nbsp; <strong>Dirección:</strong> {selectedCandidate?.address || 'No especificada'}
                     </p>
                   </div>
 
                   <div className="flex items-center gap-2">
                     <a
-                      href={`https://wa.me/${selectedCandidate.phone ? selectedCandidate.phone.replace(/[^0-9]/g, '') : ''}`}
+                      href={`https://wa.me/${selectedCandidate?.phone ? selectedCandidate.phone.toString().replace(/[^0-9]/g, '') : ''}`}
                       target="_blank"
                       rel="noreferrer"
                       className="px-3 py-1.5 rounded-lg bg-[#25D366] text-white text-xs font-semibold hover:opacity-90 transition flex items-center space-x-1"
@@ -928,39 +955,85 @@ export default function App() {
                   </div>
                 </div>
 
-                {/* Resumen de Notas & Antecedentes */}
+                {/* Resumen de Notas */}
                 <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
                   <div className="p-3 bg-gray-50 rounded-xl border text-center">
                     <span className="text-[10px] font-bold uppercase text-gray-500">Atajos / PC</span>
-                    <p className="text-xl font-black text-[#1B3326]">{selectedCandidate.shortcutsScore}%</p>
+                    <p className="text-xl font-black text-[#1B3326]">{selectedCandidate?.shortcutsScore ?? 0}%</p>
                   </div>
                   <div className="p-3 bg-gray-50 rounded-xl border text-center">
                     <span className="text-[10px] font-bold uppercase text-gray-500">Lógica Universal</span>
-                    <p className="text-xl font-black text-blue-900">{selectedCandidate.psychometricScore}%</p>
+                    <p className="text-xl font-black text-blue-900">{selectedCandidate?.psychometricScore ?? 0}%</p>
                   </div>
                   <div className="p-3 bg-gray-50 rounded-xl border text-center">
                     <span className="text-[10px] font-bold uppercase text-gray-500">Perfil Conductual</span>
-                    <p className="text-xl font-black text-[#C29F62]">{selectedCandidate.psychologicalScore}%</p>
+                    <p className="text-xl font-black text-[#C29F62]">{selectedCandidate?.psychologicalScore ?? 0}%</p>
                   </div>
                   <div className="p-3 bg-[#F7F5EE] rounded-xl border text-center">
                     <span className="text-[10px] font-bold uppercase text-gray-500">Hijos Menores</span>
                     <p className="text-sm font-bold text-gray-800 mt-1">
-                      {selectedCandidate.hasChildren === 'Sí' ? `${selectedCandidate.childrenCount} hijo(s)` : 'Sin hijos'}
+                      {selectedCandidate?.hasChildren === 'Sí' ? `${selectedCandidate.childrenCount} hijo(s)` : 'Sin hijos'}
                     </p>
                   </div>
                 </div>
 
-                {/* Adaptación o Salud */}
-                {selectedCandidate.healthAdaptation && selectedCandidate.healthAdaptation !== 'Ninguna' && (
-                  <div className="bg-amber-50 border border-amber-200 p-3 rounded-xl text-xs text-amber-900 flex items-start gap-2">
-                    <AlertCircle className="w-4 h-4 text-amber-600 mt-0.5 flex-shrink-0" />
-                    <div>
-                      <strong>Condición o requerimiento ergonómico declarado:</strong> {selectedCandidate.healthAdaptation}
-                    </div>
-                  </div>
-                )}
+                {/* Documentos Adjuntos para Ver/Descargar */}
+                <div className="border-t pt-4">
+                  <h4 className="text-xs font-bold text-[#1B3326] uppercase tracking-wider mb-3">
+                    Documentos y Expediente del Postulante
+                  </h4>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    {selectedCandidate?.cvUrl && selectedCandidate.cvUrl.toString().startsWith('http') ? (
+                      <a 
+                        href={selectedCandidate.cvUrl} 
+                        target="_blank" 
+                        rel="noreferrer"
+                        className="p-3 border rounded-xl bg-gray-50 hover:bg-[#1B3326]/5 flex items-center justify-between transition text-xs font-semibold text-[#1B3326]"
+                      >
+                        <span className="flex items-center gap-1.5"><FileText className="w-4 h-4 text-[#1B3326]" /> Ver Currículum (CV)</span>
+                        <ExternalLink className="w-3.5 h-3.5 text-gray-400" />
+                      </a>
+                    ) : (
+                      <div className="p-3 border rounded-xl bg-gray-50 text-xs text-gray-400 flex items-center gap-1.5">
+                        <FileText className="w-4 h-4 text-gray-400" /> CV: No disponible
+                      </div>
+                    )}
 
-                {/* Pauta STAR para Entrevista en Vivo (Google Meet) */}
+                    {selectedCandidate?.dniUrl && selectedCandidate.dniUrl.toString().startsWith('http') ? (
+                      <a 
+                        href={selectedCandidate.dniUrl} 
+                        target="_blank" 
+                        rel="noreferrer"
+                        className="p-3 border rounded-xl bg-gray-50 hover:bg-[#1B3326]/5 flex items-center justify-between transition text-xs font-semibold text-[#1B3326]"
+                      >
+                        <span className="flex items-center gap-1.5"><FileText className="w-4 h-4 text-[#1B3326]" /> Ver DNI (Ambos Lados)</span>
+                        <ExternalLink className="w-3.5 h-3.5 text-gray-400" />
+                      </a>
+                    ) : (
+                      <div className="p-3 border rounded-xl bg-gray-50 text-xs text-gray-400 flex items-center gap-1.5">
+                        <FileText className="w-4 h-4 text-gray-400" /> DNI: No disponible
+                      </div>
+                    )}
+
+                    {selectedCandidate?.certijovenUrl && selectedCandidate.certijovenUrl.toString().startsWith('http') ? (
+                      <a 
+                        href={selectedCandidate.certijovenUrl} 
+                        target="_blank" 
+                        rel="noreferrer"
+                        className="p-3 border rounded-xl bg-gray-50 hover:bg-[#1B3326]/5 flex items-center justify-between transition text-xs font-semibold text-[#C29F62]"
+                      >
+                        <span className="flex items-center gap-1.5"><FileText className="w-4 h-4 text-[#C29F62]" /> Ver Certijoven / CUL</span>
+                        <ExternalLink className="w-3.5 h-3.5 text-gray-400" />
+                      </a>
+                    ) : (
+                      <div className="p-3 border rounded-xl bg-gray-50 text-xs text-gray-400 flex items-center gap-1.5">
+                        <FileText className="w-4 h-4 text-gray-400" /> Certijoven: No disponible
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Scorecard STAR para Meet */}
                 <div className="border-t pt-4 space-y-4">
                   <h4 className="text-xs font-bold text-[#1B3326] uppercase tracking-wider">
                     Scorecard de Calificación en Vivo (Entrevista Meet)
